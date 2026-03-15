@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>원소 탐험대 - 주기율표 게임</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F5F0E8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#F5F0E8;font-family:sans-serif}
+#root{min-height:100vh}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+const CATEGORIES = {
+  "알칼리 금속": "#E8927C",
+  "알칼리 토금속": "#E4A972",
+  "전이 금속": "#D4B96A",
+  "전이후 금속": "#7EB8A0",
+  "준금속": "#7BA7C9",
+  "비금속": "#A38CC4",
+  "할로젠": "#C98BAE",
+  "비활성 기체": "#6CB8CC",
+  "란타넘족": "#C9A264",
+  "악티늄족": "#B492C4",
+};
+
+const CAT_SHORT = {
+  AM:"알칼리 금속", AEM:"알칼리 토금속", TM:"전이 금속", PTM:"전이후 금속",
+  ML:"준금속", NM:"비금속", HL:"할로젠", NG:"비활성 기체", LN:"란타넘족", AC:"악티늄족"
+};
+
+const ELEMENTS = [
+  {n:1,s:"H",k:"수소",e:"Hydrogen",cat:"NM",r:1,c:1,em:"💧",
+    d:"우주에서 가장 많은 원소예요! 물을 만드는 재료이고, 태양이 빛나는 이유도 수소 덕분이에요. 미래에는 수소 자동차도 달릴 거예요!"},
+  {n:2,s:"He",k:"헬륨",e:"Helium",cat:"NG",r:1,c:18,em:"🎈",
+    d:"풍선을 하늘로 띄워주는 아주 가벼운 기체예요! 헬륨을 마시면 목소리가 높아지는 재미있는 기체이기도 해요. 공기보다 훨씬 가벼워요."},
+  {n:3,s:"Li",k:"리튬",e:"Lithium",cat:"AM",r:2,c:1,em:"🔋",
+    d:"스마트폰, 노트북, 전기차 배터리에 꼭 들어가는 금속이에요! 물 위에 둥둥 뜰 만큼 가벼운 금속이고, 은백색으로 빛나요."},
+  {n:4,s:"Be",k:"베릴륨",e:"Beryllium",cat:"AEM",r:2,c:2,em:"🚀",
+    d:"아주 단단하면서도 가벼워서 인공위성과 우주선에 쓰여요! 에메랄드 보석 안에도 베릴륨이 들어있답니다."},
+  {n:5,s:"B",k:"붕소",e:"Boron",cat:"ML",r:2,c:13,em:"🧹",
+    d:"세제와 유리를 만드는 데 쓰이는 원소예요! 아주 단단한 물질을 만들 수 있어서 방탄 조끼에도 들어가요. 식물이 자라는 데 꼭 필요해요."},
+  {n:6,s:"C",k:"탄소",e:"Carbon",cat:"NM",r:2,c:14,em:"💎",
+    d:"연필심도 탄소, 반짝이는 다이아몬드도 탄소예요! 모든 생물의 몸속에 탄소가 들어있어요. 같은 원소인데 모양이 완전히 다를 수 있답니다."},
+  {n:7,s:"N",k:"질소",e:"Nitrogen",cat:"NM",r:2,c:15,em:"🌿",
+    d:"우리가 숨 쉬는 공기의 78퍼센트가 질소예요! 식물이 쑥쑥 자라려면 질소 비료가 필요해요. 액체 질소는 영하 196도로 아이스크림도 순식간에 얼려요."},
+  {n:8,s:"O",k:"산소",e:"Oxygen",cat:"NM",r:2,c:16,em:"🫁",
+    d:"우리가 숨 쉴 때 꼭 필요한 기체예요! 불이 타려면 산소가 있어야 하고, 물도 산소로 이루어져 있어요. 지구 생물이 살 수 있는 이유랍니다."},
+  {n:9,s:"F",k:"플루오린",e:"Fluorine",cat:"HL",r:2,c:17,em:"🪥",
+    d:"치약에 들어가서 충치를 막아주는 원소예요! 프라이팬의 코팅에도 플루오린이 쓰여서 음식이 달라붙지 않게 해줘요."},
+  {n:10,s:"Ne",k:"네온",e:"Neon",cat:"NG",r:2,c:18,em:"✨",
+    d:"밤거리의 화려한 네온사인을 만드는 기체예요! 전기를 통하면 빨갛게 빛나요. 다른 원소와 거의 반응하지 않는 조용한 기체랍니다."},
+  {n:11,s:"Na",k:"나트륨",e:"Sodium",cat:"AM",r:3,c:1,em:"🧂",
+    d:"소금의 주요 성분으로, 음식을 짭짤하게 만들어요! 순수한 나트륨은 물에 넣으면 불이 붙을 만큼 활발해요. 우리 몸의 신경이 일하는 데 꼭 필요해요."},
+  {n:12,s:"Mg",k:"마그네슘",e:"Magnesium",cat:"AEM",r:3,c:2,em:"🎆",
+    d:"불꽃놀이에서 환하고 하얀 빛을 내는 금속이에요! 바나나와 시금치에도 들어있고, 우리 뼈를 튼튼하게 해줘요. 아주 가벼워서 비행기에도 쓰여요."},
+  {n:13,s:"Al",k:"알루미늄",e:"Aluminum",cat:"PTM",r:3,c:13,em:"🥤",
+    d:"음료수 캔, 알루미늄 호일, 비행기 몸체를 만들어요! 가볍고 튼튼하며 녹이 잘 슬지 않아요. 지구에서 가장 많은 금속 원소랍니다."},
+  {n:14,s:"Si",k:"규소",e:"Silicon",cat:"ML",r:3,c:14,em:"💻",
+    d:"컴퓨터 칩과 스마트폰의 핵심 재료예요! 모래의 주성분이기도 하고, 태양 전지판도 규소로 만들어요. 실리콘 밸리라는 이름도 여기서 왔어요."},
+  {n:15,s:"P",k:"인",e:"Phosphorus",cat:"NM",r:3,c:15,em:"🦴",
+    d:"뼈와 이를 튼튼하게 만들어주고, 성냥에도 들어있어요! 어둠 속에서 빛나는 성질이 있어서 이름이 '빛을 가져오는 것'이라는 뜻이에요."},
+  {n:16,s:"S",k:"황",e:"Sulfur",cat:"NM",r:3,c:16,em:"🌋",
+    d:"노란색이고 달걀 썩는 냄새가 나는 원소예요! 화산 근처에서 많이 볼 수 있고, 고무를 만들 때도 황이 필요해요. 온천의 독특한 냄새도 황 때문이에요."},
+  {n:17,s:"Cl",k:"염소",e:"Chlorine",cat:"HL",r:3,c:17,em:"🏊",
+    d:"수영장 물을 깨끗하게 소독하는 데 쓰여요! 소금의 한 성분이기도 하고, 수돗물을 안전하게 마실 수 있도록 도와줘요."},
+  {n:18,s:"Ar",k:"아르곤",e:"Argon",cat:"NG",r:3,c:18,em:"💡",
+    d:"전구 안에 채우는 조용한 기체예요! 다른 원소와 전혀 반응하지 않아서 '게으른 기체'라는 뜻의 이름이 붙었어요. 공기의 약 1퍼센트가 아르곤이에요."},
+  {n:19,s:"K",k:"칼륨",e:"Potassium",cat:"AM",r:4,c:1,em:"🍌",
+    d:"바나나에 많이 들어있는 영양소예요! 우리 몸의 근육이 잘 움직이고 심장이 건강하게 뛰려면 칼륨이 필요해요. 물에 넣으면 보라색 불꽃이 나요."},
+  {n:20,s:"Ca",k:"칼슘",e:"Calcium",cat:"AEM",r:4,c:2,em:"🥛",
+    d:"우유, 치즈, 멸치에 많이 들어있어요! 뼈와 이를 튼튼하게 해주는 가장 중요한 영양소예요. 분필과 석회석의 주성분이기도 해요."},
+  {n:21,s:"Sc",k:"스칸듐",e:"Scandium",cat:"TM",r:4,c:3,em:"🚲",
+    d:"아주 가볍고 튼튼해서 고급 자전거와 야구 배트를 만들어요! 스칸디나비아 지역에서 이름을 따왔어요."},
+  {n:22,s:"Ti",k:"타이타늄",e:"Titanium",cat:"TM",r:4,c:4,em:"✈️",
+    d:"비행기, 우주선, 인공 관절에 쓰이는 아주 튼튼한 금속이에요! 가볍고 녹이 슬지 않아서 바닷속에서도 쓸 수 있어요. 하얀 물감의 재료이기도 해요."},
+  {n:23,s:"V",k:"바나듐",e:"Vanadium",cat:"TM",r:4,c:5,em:"⚙️",
+    d:"강철에 섞으면 아주 튼튼해져서 자동차 부품과 공구를 만들어요! 스칸디나비아 신화의 여신 이름에서 따왔어요."},
+  {n:24,s:"Cr",k:"크로뮴",e:"Chromium",cat:"TM",r:4,c:6,em:"🚗",
+    d:"자동차 범퍼를 반짝반짝 빛나게 코팅하는 금속이에요! 루비가 빨간색인 이유도 크로뮴 덕분이에요. 스테인리스 강철에도 들어가요."},
+  {n:25,s:"Mn",k:"망가니즈",e:"Manganese",cat:"TM",r:4,c:7,em:"🔌",
+    d:"건전지를 만드는 중요한 재료예요! 강철을 더 단단하게 만들어주고, 유리를 투명하게 해주는 역할도 해요."},
+  {n:26,s:"Fe",k:"철",e:"Iron",cat:"TM",r:4,c:8,em:"🌉",
+    d:"다리, 건물, 자동차를 만드는 가장 중요한 금속이에요! 지구의 핵도 철로 이루어져 있고, 우리 피 속에도 철이 있어서 산소를 운반해요."},
+  {n:27,s:"Co",k:"코발트",e:"Cobalt",cat:"TM",r:4,c:9,em:"🎨",
+    d:"아름다운 코발트 블루 물감을 만드는 금속이에요! 전기차 배터리에도 많이 쓰이고, 비타민 B12에도 코발트가 들어있답니다."},
+  {n:28,s:"Ni",k:"니켈",e:"Nickel",cat:"TM",r:4,c:10,em:"🪙",
+    d:"동전을 만드는 데 많이 쓰이는 금속이에요! 녹이 잘 슬지 않아서 스테인리스 강철에 넣고, 충전 배터리에도 들어가요."},
+  {n:29,s:"Cu",k:"구리",e:"Copper",cat:"TM",r:4,c:11,em:"🔌",
+    d:"전선의 재료로 전기를 잘 흘려보내요! 자유의 여신상이 초록색인 이유는 구리가 산화되었기 때문이에요. 동전의 갈색도 구리 색이에요."},
+  {n:30,s:"Zn",k:"아연",e:"Zinc",cat:"TM",r:4,c:12,em:"💊",
+    d:"감기약에 들어있고 피부를 보호해주는 금속이에요! 철이 녹슬지 않도록 코팅하는 데도 쓰이고, 선크림에도 아연이 들어가요."},
+  {n:31,s:"Ga",k:"갈륨",e:"Gallium",cat:"PTM",r:4,c:13,em:"🫠",
+    d:"손바닥 위에 올려놓으면 체온에 녹는 신기한 금속이에요! LED 조명과 스마트폰 화면을 만드는 데도 쓰여요."},
+  {n:32,s:"Ge",k:"저마늄",e:"Germanium",cat:"ML",r:4,c:14,em:"📷",
+    d:"적외선 카메라의 렌즈를 만드는 데 쓰여요! 초기 트랜지스터를 만들 때 사용했던 중요한 반도체 재료예요."},
+  {n:33,s:"As",k:"비소",e:"Arsenic",cat:"ML",r:4,c:15,em:"🔬",
+    d:"반도체를 만드는 데 쓰이는 원소예요! 옛날에는 독약으로 유명했지만 요즘은 전자제품에 소량 사용돼요."},
+  {n:34,s:"Se",k:"셀레늄",e:"Selenium",cat:"NM",r:4,c:16,em:"☀️",
+    d:"태양 전지판을 만드는 데 쓰이는 원소예요! 브라질 너트와 참치에도 들어있고, 우리 몸의 건강을 지켜주는 영양소예요."},
+  {n:35,s:"Br",k:"브로민",e:"Bromine",cat:"HL",r:4,c:17,em:"🧪",
+    d:"상온에서 액체인 몇 안 되는 원소예요! 빨간 갈색이고 냄새가 아주 강해요. 불이 잘 안 붙게 하는 방화 재료에 쓰여요."},
+  {n:36,s:"Kr",k:"크립톤",e:"Krypton",cat:"NG",r:4,c:18,em:"💫",
+    d:"특수한 고급 조명에 쓰이는 기체예요! 슈퍼맨의 고향 행성 이름과 같지만 실제로는 조용한 비활성 기체예요."},
+  {n:37,s:"Rb",k:"루비듐",e:"Rubidium",cat:"AM",r:5,c:1,em:"⏰",
+    d:"GPS 위성에 들어가는 아주 정확한 원자시계를 만들어요! 이름은 빨간색이라는 뜻의 라틴어에서 왔어요."},
+  {n:38,s:"Sr",k:"스트론튬",e:"Strontium",cat:"AEM",r:5,c:2,em:"🎆",
+    d:"불꽃놀이에서 아름다운 빨간색을 내는 원소예요! TV 브라운관에도 쓰였고, 뼈를 튼튼하게 하는 약에도 들어가요."},
+  {n:39,s:"Y",k:"이트륨",e:"Yttrium",cat:"TM",r:5,c:3,em:"📺",
+    d:"TV와 LED 화면에서 빨간색을 만드는 원소예요! 레이저와 초전도체를 만드는 데도 쓰여요."},
+  {n:40,s:"Zr",k:"지르코늄",e:"Zirconium",cat:"TM",r:5,c:4,em:"💍",
+    d:"다이아몬드처럼 반짝이는 큐빅 보석을 만들어요! 아주 높은 온도에서도 견딜 수 있어서 원자로에도 쓰여요."},
+  {n:41,s:"Nb",k:"나이오븀",e:"Niobium",cat:"TM",r:5,c:5,em:"🚀",
+    d:"초전도체와 로켓 엔진에 쓰이는 금속이에요! MRI 기계에도 나이오븀이 들어가요. 그리스 신화의 니오베에서 이름을 따왔어요."},
+  {n:42,s:"Mo",k:"몰리브데넘",e:"Molybdenum",cat:"TM",r:5,c:6,em:"🔥",
+    d:"녹는점이 아주 높아서 로켓 부품에 쓰여요! 강철을 더 튼튼하게 만들어주고, 식물이 자라는 데도 필요한 원소예요."},
+  {n:43,s:"Tc",k:"테크네튬",e:"Technetium",cat:"TM",r:5,c:7,em:"🏥",
+    d:"병원에서 몸 속 장기를 촬영할 때 쓰는 방사성 원소예요! 자연에서는 거의 찾을 수 없고 사람이 만든 첫 번째 인공 원소예요."},
+  {n:44,s:"Ru",k:"루테늄",e:"Ruthenium",cat:"TM",r:5,c:8,em:"📱",
+    d:"하드디스크와 전자제품을 만드는 데 쓰여요! 만년필 촉에도 코팅하고, 태양 전지의 효율을 높여줘요."},
+  {n:45,s:"Rh",k:"로듐",e:"Rhodium",cat:"TM",r:5,c:9,em:"🌬️",
+    d:"자동차 배기가스를 깨끗하게 걸러주는 촉매에 쓰여요! 금보다 더 비싼 귀금속이고, 거울을 만드는 데도 사용돼요."},
+  {n:46,s:"Pd",k:"팔라듐",e:"Palladium",cat:"TM",r:5,c:10,em:"💎",
+    d:"자동차 배기가스 정화 장치에 꼭 필요한 귀금속이에요! 보석, 치과 재료, 전자제품에도 널리 쓰여요."},
+  {n:47,s:"Ag",k:"은",e:"Silver",cat:"TM",r:5,c:11,em:"🥈",
+    d:"반짝이는 은 목걸이와 숟가락을 만들어요! 전기를 가장 잘 통하게 하는 금속이고, 세균을 죽이는 힘도 있어서 의료용품에도 쓰여요."},
+  {n:48,s:"Cd",k:"카드뮴",e:"Cadmium",cat:"TM",r:5,c:12,em:"🔋",
+    d:"옛날 충전 배터리에 많이 쓰이던 금속이에요! 노란색 물감을 만드는 데도 사용했어요. 환경에 안 좋아서 요즘은 적게 쓰고 있어요."},
+  {n:49,s:"In",k:"인듐",e:"Indium",cat:"PTM",r:5,c:13,em:"📱",
+    d:"스마트폰과 태블릿의 터치스크린을 만드는 핵심 재료예요! 투명하면서 전기가 통하는 신기한 물질을 만들 수 있어요."},
+  {n:50,s:"Sn",k:"주석",e:"Tin",cat:"PTM",r:5,c:14,em:"🥫",
+    d:"통조림 캔의 코팅에 쓰이는 금속이에요! 옛날에는 주석 장난감 군인을 만들었고, 전자 부품을 납땜할 때도 사용해요."},
+  {n:51,s:"Sb",k:"안티모니",e:"Antimony",cat:"ML",r:5,c:15,em:"🧯",
+    d:"불에 잘 타지 않게 해주는 방화 재료에 쓰여요! 옛날 이집트에서는 눈 화장품으로 사용했고, 배터리에도 들어가요."},
+  {n:52,s:"Te",k:"텔루륨",e:"Tellurium",cat:"ML",r:5,c:16,em:"☀️",
+    d:"태양 전지판의 효율을 높여주는 원소예요! 지구라는 뜻의 라틴어에서 이름을 따왔고, 아주 희귀한 원소예요."},
+  {n:53,s:"I",k:"아이오딘",e:"Iodine",cat:"HL",r:5,c:17,em:"🩹",
+    d:"상처에 바르는 빨간약의 주성분이에요! 소금에 넣어서 갑상선 질환을 예방하고, 보라색 증기를 내는 아름다운 원소예요."},
+  {n:54,s:"Xe",k:"제논",e:"Xenon",cat:"NG",r:5,c:18,em:"🔦",
+    d:"밝고 하얀 자동차 전조등에 쓰이는 기체예요! 우주선의 이온 엔진에도 사용되고, 이름은 '낯선 것'이라는 그리스어에서 왔어요."},
+  {n:55,s:"Cs",k:"세슘",e:"Cesium",cat:"AM",r:6,c:1,em:"⏱️",
+    d:"세계에서 가장 정확한 원자시계를 만드는 원소예요! 1초의 기준이 바로 세슘으로 정해져요. 금색 빛깔의 부드러운 금속이에요."},
+  {n:56,s:"Ba",k:"바륨",e:"Barium",cat:"AEM",r:6,c:2,em:"🎇",
+    d:"불꽃놀이에서 아름다운 초록색을 내는 원소예요! 병원에서 장 검사를 할 때 바륨 음료를 마시기도 해요."},
+  {n:57,s:"La",k:"란타넘",e:"Lanthanum",cat:"LN",r:9,c:3,em:"📸",
+    d:"카메라와 망원경의 고급 렌즈를 만들어요! 이름은 '숨어있다'는 뜻의 그리스어에서 왔어요. 하이브리드 자동차 배터리에도 들어가요."},
+  {n:58,s:"Ce",k:"세륨",e:"Cerium",cat:"LN",r:9,c:4,em:"🔥",
+    d:"라이터의 부싯돌에서 불꽃을 만들어요! 자동차 유리를 연마하는 데도 쓰이고, 희토류 중에서 가장 많이 있는 원소예요."},
+  {n:59,s:"Pr",k:"프라세오디뮴",e:"Praseodymium",cat:"LN",r:9,c:5,em:"✈️",
+    d:"비행기 엔진의 합금에 쓰이고, 용접할 때 눈을 보호하는 특수 유리를 만들어요! 이름은 '초록 쌍둥이'라는 뜻이에요."},
+  {n:60,s:"Nd",k:"네오디뮴",e:"Neodymium",cat:"LN",r:9,c:6,em:"🧲",
+    d:"세상에서 가장 강한 영구 자석을 만드는 원소예요! 이어폰, 전기 모터, 풍력 발전기에 꼭 필요해요. 이름은 '새로운 쌍둥이'라는 뜻이에요."},
+  {n:61,s:"Pm",k:"프로메튬",e:"Promethium",cat:"LN",r:9,c:7,em:"🌙",
+    d:"어둠 속에서 빛나는 야광 페인트를 만들어요! 인공위성의 배터리에도 쓰여요. 그리스 신화의 프로메테우스에서 이름을 따왔어요."},
+  {n:62,s:"Sm",k:"사마륨",e:"Samarium",cat:"LN",r:9,c:8,em:"🧲",
+    d:"강한 자석을 만드는 데 쓰이는 희토류 원소예요! 높은 온도에서도 자성을 잃지 않아서 군사 장비에 사용돼요."},
+  {n:63,s:"Eu",k:"유로퓸",e:"Europium",cat:"LN",r:9,c:9,em:"💵",
+    d:"지폐에 보이지 않는 형광 물질을 넣어서 위조를 방지해요! TV 화면의 빨간색도 유로퓸 덕분이에요. 유럽 대륙에서 이름을 따왔어요."},
+  {n:64,s:"Gd",k:"가돌리늄",e:"Gadolinium",cat:"LN",r:9,c:10,em:"🏥",
+    d:"병원에서 MRI 촬영할 때 몸속을 더 잘 보이게 해주는 조영제에 쓰여요! 원자로의 안전 장치에도 들어가요."},
+  {n:65,s:"Tb",k:"터븀",e:"Terbium",cat:"LN",r:9,c:11,em:"💚",
+    d:"형광등과 LED에서 초록색 빛을 만드는 원소예요! 스웨덴의 이테르비 마을에서 이름을 따왔어요."},
+  {n:66,s:"Dy",k:"디스프로슘",e:"Dysprosium",cat:"LN",r:9,c:12,em:"🚙",
+    d:"전기 자동차와 풍력 발전기의 강력한 모터에 꼭 필요한 원소예요! 이름은 '접근하기 어렵다'는 그리스어에서 왔어요."},
+  {n:67,s:"Ho",k:"홀뮴",e:"Holmium",cat:"LN",r:9,c:13,em:"🧲",
+    d:"모든 원소 중에서 가장 강한 자성을 가진 원소예요! 의료용 레이저에도 쓰여요. 스톡홀름의 라틴 이름에서 따왔어요."},
+  {n:68,s:"Er",k:"어븀",e:"Erbium",cat:"LN",r:9,c:14,em:"🌐",
+    d:"인터넷 광케이블 안에서 빛 신호를 증폭시켜요! 분홍색 유리를 만드는 데도 쓰이고, 피부과 레이저에도 사용돼요."},
+  {n:69,s:"Tm",k:"툴륨",e:"Thulium",cat:"LN",r:9,c:15,em:"🔴",
+    d:"의료용 레이저를 만드는 데 쓰이는 희귀한 원소예요! 지구에서 가장 적게 있는 희토류 중 하나예요."},
+  {n:70,s:"Yb",k:"이터븀",e:"Ytterbium",cat:"LN",r:9,c:16,em:"📏",
+    d:"아주 정밀한 원자시계와 측정 장비에 쓰여요! 스웨덴 이테르비 마을에서 이름을 딴 네 번째 원소예요."},
+  {n:71,s:"Lu",k:"루테튬",e:"Lutetium",cat:"LN",r:9,c:17,em:"⛽",
+    d:"석유를 정제하는 공장에서 촉매로 쓰여요! PET 스캔 기계에도 들어가요. 파리의 옛 이름 '루테티아'에서 따왔어요."},
+  {n:72,s:"Hf",k:"하프늄",e:"Hafnium",cat:"TM",r:6,c:4,em:"⚛️",
+    d:"원자로에서 핵반응을 조절하는 중요한 금속이에요! 아주 높은 온도를 견딜 수 있어서 로켓 노즐에도 쓰여요."},
+  {n:73,s:"Ta",k:"탄탈럼",e:"Tantalum",cat:"TM",r:6,c:5,em:"📱",
+    d:"스마트폰과 노트북 안의 작은 전자 부품을 만들어요! 몸 안에 넣어도 안전해서 인공 관절에도 사용돼요."},
+  {n:74,s:"W",k:"텅스텐",e:"Tungsten",cat:"TM",r:6,c:6,em:"💡",
+    d:"모든 금속 중에서 녹는점이 가장 높아요! 전구의 필라멘트를 만들고, 아주 단단한 드릴 날에도 쓰여요."},
+  {n:75,s:"Re",k:"레늄",e:"Rhenium",cat:"TM",r:6,c:7,em:"🛩️",
+    d:"제트 엔진의 고온 부품에 쓰이는 귀한 금속이에요! 지구에서 아주 적은 양만 존재하는 희귀한 원소예요."},
+  {n:76,s:"Os",k:"오스뮴",e:"Osmium",cat:"TM",r:6,c:8,em:"⚖️",
+    d:"자연에서 가장 밀도가 높은, 즉 가장 무거운 금속이에요! 만년필 촉과 전기 접점에 쓰여요. 이름은 '냄새'라는 그리스어에서 왔어요."},
+  {n:77,s:"Ir",k:"이리듐",e:"Iridium",cat:"TM",r:6,c:9,em:"🖊️",
+    d:"가장 부식에 강한 금속이에요! 만년필 촉과 점화 플러그에 쓰여요. 공룡 멸종의 원인이 된 운석에 이리듐이 많이 들어있었어요."},
+  {n:78,s:"Pt",k:"백금",e:"Platinum",cat:"TM",r:6,c:10,em:"💍",
+    d:"금보다 더 귀한 보석 반지에 쓰이는 금속이에요! 자동차 배기가스를 깨끗하게 하고, 항암제를 만드는 데도 사용돼요."},
+  {n:79,s:"Au",k:"금",e:"Gold",cat:"TM",r:6,c:11,em:"👑",
+    d:"반짝반짝 빛나는 노란색 금속! 왕관, 메달, 보석을 만들고, 전자제품의 접점에도 사용돼요. 녹이 절대 슬지 않는 영원한 금속이에요."},
+  {n:80,s:"Hg",k:"수은",e:"Mercury",cat:"TM",r:6,c:12,em:"🌡️",
+    d:"상온에서 액체인 유일한 금속이에요! 은색으로 흘러다녀서 '살아있는 은'이라는 별명이 있어요. 옛날 온도계에 쓰였어요."},
+  {n:81,s:"Tl",k:"탈륨",e:"Thallium",cat:"PTM",r:6,c:13,em:"🔍",
+    d:"특수한 유리와 광학 렌즈를 만드는 데 쓰여요! 이름은 '초록 새싹'이라는 뜻의 그리스어에서 왔어요."},
+  {n:82,s:"Pb",k:"납",e:"Lead",cat:"PTM",r:6,c:14,em:"🛡️",
+    d:"엑스레이를 차단하는 방호복에 쓰여요! 아주 무겁고 부드러운 금속이에요. 옛날 로마에서는 수도관을 만들었어요."},
+  {n:83,s:"Bi",k:"비스무트",e:"Bismuth",cat:"PTM",r:6,c:15,em:"🌈",
+    d:"무지개 색 계단 모양의 아름다운 결정을 만들어요! 배탈 약에 들어있고, 화장품에도 반짝이는 효과를 내는 데 쓰여요."},
+  {n:84,s:"Po",k:"폴로늄",e:"Polonium",cat:"ML",r:6,c:16,em:"🛸",
+    d:"방사성 원소로 우주 탐사선의 열전지에 쓰여요! 퀴리 부인이 발견했고, 고향 폴란드의 이름을 붙였어요."},
+  {n:85,s:"At",k:"아스타틴",e:"Astatine",cat:"HL",r:6,c:17,em:"🔮",
+    d:"자연에서 가장 희귀한 원소 중 하나예요! 지구 전체에 30그램 정도밖에 없다고 해요. 이름은 '불안정하다'는 뜻이에요."},
+  {n:86,s:"Rn",k:"라돈",e:"Radon",cat:"NG",r:6,c:18,em:"🏠",
+    d:"땅속 바위에서 나오는 눈에 보이지 않는 방사성 기체예요! 집 안에 모이지 않도록 환기를 잘 해야 해요."},
+  {n:87,s:"Fr",k:"프랑슘",e:"Francium",cat:"AM",r:7,c:1,em:"⭐",
+    d:"자연에서 가장 불안정한 원소로, 잠깐만 존재하다가 사라져요! 프랑스에서 발견해서 프랑슘이라고 불러요."},
+  {n:88,s:"Ra",k:"라듐",e:"Radium",cat:"AEM",r:7,c:2,em:"✨",
+    d:"어둠 속에서 푸르게 빛나는 원소예요! 퀴리 부인이 발견했어요. 옛날에는 시계 바늘에 칠해서 밤에도 시간을 볼 수 있었어요."},
+  {n:89,s:"Ac",k:"악티늄",e:"Actinium",cat:"AC",r:10,c:3,em:"🔵",
+    d:"어둠 속에서 아름다운 파란 빛을 내는 방사성 원소예요! 이름은 '빛줄기'라는 뜻의 그리스어에서 왔어요."},
+  {n:90,s:"Th",k:"토륨",e:"Thorium",cat:"AC",r:10,c:4,em:"⚡",
+    d:"미래의 깨끗한 원자력 에너지로 주목받는 원소예요! 북유럽 신화의 천둥 신 토르의 이름에서 따왔어요."},
+  {n:91,s:"Pa",k:"프로탁티늄",e:"Protactinium",cat:"AC",r:10,c:5,em:"🔬",
+    d:"아주 희귀하고 방사성이 있는 원소예요! 이름은 악티늄의 '부모'라는 뜻이에요. 연구용으로만 쓰여요."},
+  {n:92,s:"U",k:"우라늄",e:"Uranium",cat:"AC",r:10,c:6,em:"⚛️",
+    d:"원자력 발전소에서 전기를 만드는 핵심 원소예요! 천왕성의 이름을 따서 지었고, 아주 무거운 금속이에요."},
+  {n:93,s:"Np",k:"넵투늄",e:"Neptunium",cat:"AC",r:10,c:7,em:"🪐",
+    d:"해왕성의 이름을 따서 지은 인공 원소예요! 원자로에서 부산물로 만들어지고, 과학 연구에 사용돼요."},
+  {n:94,s:"Pu",k:"플루토늄",e:"Plutonium",cat:"AC",r:10,c:8,em:"🛰️",
+    d:"보이저 같은 우주 탐사선의 에너지원으로 쓰여요! 명왕성의 이름을 따서 지었고, 원자력 에너지에도 쓰이는 중요한 원소예요."},
+  {n:95,s:"Am",k:"아메리슘",e:"Americium",cat:"AC",r:10,c:9,em:"🚨",
+    d:"집과 건물의 화재 감지기 안에 들어있어요! 아메리카 대륙의 이름을 따서 지었고, 우리 안전을 지켜주는 원소예요."},
+  {n:96,s:"Cm",k:"퀴륨",e:"Curium",cat:"AC",r:10,c:10,em:"👩‍🔬",
+    d:"위대한 과학자 퀴리 부부의 이름을 딴 원소예요! 화성 탐사 로봇이 바위 성분을 분석할 때 사용했어요."},
+  {n:97,s:"Bk",k:"버클륨",e:"Berkelium",cat:"AC",r:10,c:11,em:"🏫",
+    d:"미국 캘리포니아의 버클리 대학교에서 처음 만들어진 원소예요! 아주 적은 양만 만들 수 있는 희귀한 원소예요."},
+  {n:98,s:"Cf",k:"캘리포늄",e:"Californium",cat:"AC",r:10,c:12,em:"🔎",
+    d:"금속이나 건물 안의 숨겨진 균열을 찾아내는 데 쓰여요! 미국 캘리포니아 주에서 이름을 따왔어요."},
+  {n:99,s:"Es",k:"아인슈타이늄",e:"Einsteinium",cat:"AC",r:10,c:13,em:"🧠",
+    d:"역사상 가장 유명한 과학자 아인슈타인의 이름을 딴 원소예요! 첫 수소폭탄 실험 후 잔해에서 발견되었어요."},
+  {n:100,s:"Fm",k:"페르뮴",e:"Fermium",cat:"AC",r:10,c:14,em:"👨‍🔬",
+    d:"원자력의 아버지라 불리는 과학자 엔리코 페르미의 이름을 따왔어요! 아인슈타이늄과 함께 발견되었어요."},
+  {n:101,s:"Md",k:"멘델레븀",e:"Mendelevium",cat:"AC",r:10,c:15,em:"📋",
+    d:"주기율표를 처음 만든 위대한 과학자 멘델레예프의 이름을 딴 원소예요! 한 번에 원자 몇 개만 만들 수 있어요."},
+  {n:102,s:"No",k:"노벨륨",e:"Nobelium",cat:"AC",r:10,c:16,em:"🏆",
+    d:"다이너마이트를 발명하고 노벨상을 만든 알프레드 노벨의 이름을 딴 원소예요! 연구실에서만 만들 수 있어요."},
+  {n:103,s:"Lr",k:"로렌슘",e:"Lawrencium",cat:"AC",r:10,c:17,em:"🧪",
+    d:"입자 가속기를 발명한 과학자 로렌스의 이름을 딴 원소예요! 악티늄족의 마지막 원소예요."},
+  {n:104,s:"Rf",k:"러더포듐",e:"Rutherfordium",cat:"TM",r:7,c:4,em:"🔬",
+    d:"원자 핵을 발견한 위대한 과학자 러더퍼드의 이름을 딴 인공 원소예요! 아주 짧은 시간만 존재해요."},
+  {n:105,s:"Db",k:"더브늄",e:"Dubnium",cat:"TM",r:7,c:5,em:"🏙️",
+    d:"러시아의 과학 도시 두브나에서 이름을 따온 인공 원소예요! 만든 지 몇 초 만에 사라져요."},
+  {n:106,s:"Sg",k:"시보귬",e:"Seaborgium",cat:"TM",r:7,c:6,em:"👨‍🔬",
+    d:"10개의 원소를 발견한 위대한 화학자 글렌 시보그의 이름을 딴 원소예요! 살아있을 때 이름이 붙은 드문 경우예요."},
+  {n:107,s:"Bh",k:"보륨",e:"Bohrium",cat:"TM",r:7,c:7,em:"⚛️",
+    d:"양자역학의 아버지 닐스 보어의 이름을 딴 원소예요! 실험실에서 아주 적은 양만 만들 수 있어요."},
+  {n:108,s:"Hs",k:"하슘",e:"Hassium",cat:"TM",r:7,c:8,em:"🇩🇪",
+    d:"독일 헤센 주에서 이름을 딴 원소예요! 독일의 입자 가속기에서 처음 만들어졌어요."},
+  {n:109,s:"Mt",k:"마이트너륨",e:"Meitnerium",cat:"TM",r:7,c:9,em:"👩‍🔬",
+    d:"핵분열을 설명한 여성 물리학자 리제 마이트너의 이름을 딴 원소예요! 과학사에서 중요한 여성 과학자를 기리고 있어요."},
+  {n:110,s:"Ds",k:"다름슈타튬",e:"Darmstadtium",cat:"TM",r:7,c:10,em:"🏛️",
+    d:"독일 다름슈타트 도시의 연구소에서 만들어진 원소예요! 아주 무거운 인공 원소 중 하나예요."},
+  {n:111,s:"Rg",k:"뢴트게늄",e:"Roentgenium",cat:"TM",r:7,c:11,em:"🩻",
+    d:"엑스레이를 처음 발견한 뢴트겐의 이름을 딴 원소예요! 첫 번째 노벨 물리학상 수상자이기도 해요."},
+  {n:112,s:"Cn",k:"코페르니슘",e:"Copernicium",cat:"TM",r:7,c:12,em:"🌍",
+    d:"지구가 태양 주위를 돈다고 처음 주장한 코페르니쿠스의 이름을 딴 원소예요! 수은처럼 액체일 것으로 예측돼요."},
+  {n:113,s:"Nh",k:"니호늄",e:"Nihonium",cat:"PTM",r:7,c:13,em:"🇯🇵",
+    d:"아시아에서 처음 발견된 원소로, 일본의 이름을 붙였어요! '니혼'은 일본어로 '일본'이라는 뜻이에요."},
+  {n:114,s:"Fl",k:"플레로븀",e:"Flerovium",cat:"PTM",r:7,c:14,em:"🔬",
+    d:"러시아의 핵물리학자 플레로프의 이름을 딴 원소예요! 초중량 원소 연구의 선구자를 기리고 있어요."},
+  {n:115,s:"Mc",k:"모스코븀",e:"Moscovium",cat:"PTM",r:7,c:15,em:"🏰",
+    d:"러시아 수도 모스크바의 이름을 딴 원소예요! 두브나 연구소에서 만들어졌어요."},
+  {n:116,s:"Lv",k:"리버모륨",e:"Livermorium",cat:"PTM",r:7,c:16,em:"🔭",
+    d:"미국 로렌스 리버모어 국립 연구소에서 이름을 따온 원소예요! 러시아와 미국이 함께 만들었어요."},
+  {n:117,s:"Ts",k:"테네신",e:"Tennessine",cat:"HL",r:7,c:17,em:"🗺️",
+    d:"미국 테네시 주에서 이름을 딴 원소예요! 오크 리지 국립 연구소가 있는 곳이에요."},
+  {n:118,s:"Og",k:"오가네손",e:"Oganesson",cat:"NG",r:7,c:18,em:"🎯",
+    d:"현재까지 발견된 마지막 118번째 원소예요! 러시아 과학자 유리 오가네시안의 이름을 따왔어요. 비활성 기체지만 고체일 수도 있어요."},
+];
+
+const PRAISES = [
+  "정말 잘했어요!","대단해요! 과학 천재!","와 너무 똑똑해요!","훌륭해요! 계속 가봐요!",
+  "멋져요! 원소 박사님!","짝짝짝! 최고예요!","정말 잘 알고 있네요!","완벽해요! 과학의 별!",
+];
+
+const audioCtx = typeof window !== 'undefined' ? new (window.AudioContext || window.webkitAudioContext)() : null;
+
+function playTone(freq, dur, type='sine', vol=0.12) {
+  if (!audioCtx) return;
+  audioCtx.resume();
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+function playSuccess() {
+  playTone(523,0.12); setTimeout(()=>playTone(659,0.12),80);
+  setTimeout(()=>playTone(784,0.12),160); setTimeout(()=>playTone(1047,0.25),240);
+}
+function playClick() { playTone(700,0.06,'sine',0.08); }
+function playWrong() { playTone(300,0.18,'square',0.08); setTimeout(()=>playTone(250,0.25,'square',0.08),120); }
+function playDing() { playTone(1100,0.12,'sine',0.1); setTimeout(()=>playTone(1400,0.15,'sine',0.08),80); }
+
+function speakKorean(text) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ko-KR';
+  u.rate = 0.9;
+  u.pitch = 1.3;
+  u.volume = 1.0;
+  const voices = window.speechSynthesis.getVoices();
+  const koVoice = voices.find(v => v.lang === 'ko-KR' && v.name.includes('Google'))
+    || voices.find(v => v.lang === 'ko-KR')
+    || voices.find(v => v.lang.startsWith('ko'));
+  if (koVoice) u.voice = koVoice;
+  window.speechSynthesis.speak(u);
+}
+
+function speakEnglish(text) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US';
+  u.rate = 0.8;
+  u.pitch = 1.2;
+  const voices = window.speechSynthesis.getVoices();
+  const enVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google'))
+    || voices.find(v => v.lang === 'en-US')
+    || voices.find(v => v.lang.startsWith('en'));
+  if (enVoice) u.voice = enVoice;
+  window.speechSynthesis.speak(u);
+}
+
+function PeriodicTableGame() {
+  const [view, setView] = useState('table');
+  const [selectedEl, setSelectedEl] = useState(null);
+  const [learned, setLearned] = useState(new Set());
+  const [stars, setStars] = useState(0);
+  const [quizEl, setQuizEl] = useState(null);
+  const [quizOpts, setQuizOpts] = useState([]);
+  const [quizResult, setQuizResult] = useState(null);
+  const [praise, setPraise] = useState('');
+  const [showPraise, setShowPraise] = useState(false);
+  const [hoveredCat, setHoveredCat] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+  }, []);
+
+  const getColor = (el) => CATEGORIES[CAT_SHORT[el.cat]] || '#ccc';
+
+  const openDetail = (el) => {
+    playDing(); setSelectedEl(el); setView('detail');
+    setTimeout(() => { speakEnglish(el.e); setTimeout(() => speakKorean(el.k), 1800); }, 400);
+  };
+
+  const markLearned = () => {
+    playSuccess();
+    const s = new Set(learned);
+    if (!s.has(selectedEl.n)) { s.add(selectedEl.n); setLearned(s); setStars(v=>v+1); }
+    const p = PRAISES[Math.floor(Math.random()*PRAISES.length)];
+    setPraise(p); setShowPraise(true);
+    speakKorean(p);
+    setTimeout(()=>setShowPraise(false), 2500);
+  };
+
+  const goNav = (dir) => {
+    playClick();
+    const idx = ELEMENTS.findIndex(e=>e.n===selectedEl.n);
+    const ni = dir>0 ? (idx<ELEMENTS.length-1?idx+1:0) : (idx>0?idx-1:ELEMENTS.length-1);
+    setSelectedEl(ELEMENTS[ni]);
+    setTimeout(()=>{ speakEnglish(ELEMENTS[ni].e); setTimeout(()=>speakKorean(ELEMENTS[ni].k),1800); },400);
+  };
+
+  const startQuiz = () => {
+    playClick();
+    const pool = ELEMENTS.filter(e=>learned.has(e.n));
+    if (pool.length<4) {
+      setPraise('원소를 4개 이상 배우면 퀴즈를 시작할 수 있어요!');
+      setShowPraise(true); speakKorean('원소를 4개 이상 배우면 퀴즈를 시작할 수 있어요!');
+      setTimeout(()=>setShowPraise(false),3000); return;
+    }
+    const t = pool[Math.floor(Math.random()*pool.length)];
+    const others = pool.filter(e=>e.n!==t.n).sort(()=>Math.random()-0.5).slice(0,3);
+    setQuizEl(t); setQuizOpts([...others,t].sort(()=>Math.random()-0.5));
+    setQuizResult(null); setView('quiz');
+    setTimeout(()=>speakKorean(t.d), 400);
+  };
+
+  const answerQuiz = (el) => {
+    if (quizResult) return;
+    if (el.n===quizEl.n) {
+      playSuccess(); setQuizResult('correct'); setStars(s=>s+2);
+      const p = PRAISES[Math.floor(Math.random()*PRAISES.length)];
+      setPraise(p); speakKorean('정답이에요! '+p);
+    } else {
+      playWrong(); setQuizResult('wrong');
+      speakKorean('아쉬워요. 정답은 '+quizEl.k+'이에요.');
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight:'100vh',
+      background:'#F5F0E8',
+      fontFamily:'"Noto Sans KR","Pretendard",sans-serif',
+      position:'relative', overflow:'hidden',
+    }}>
+      <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&family=Gaegu:wght@700&display=swap" rel="stylesheet"/>
+      <style>{`
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        @keyframes popIn { 0%{transform:scale(0);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes glow { 0%,100%{box-shadow:0 0 8px rgba(200,160,80,0.3)} 50%{box-shadow:0 0 20px rgba(200,160,80,0.6)} }
+        @keyframes sparkle { 0%,100%{opacity:1;transform:scale(1) rotate(0deg)} 50%{opacity:.6;transform:scale(1.3) rotate(10deg)} }
+        @keyframes slideIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+        .cell:hover { transform:scale(1.35)!important; z-index:10!important; box-shadow:0 6px 20px rgba(0,0,0,0.25)!important; }
+        .cell { transition:all 0.2s cubic-bezier(.34,1.56,.64,1); }
+        .btn-nav:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+        .btn-nav { transition:all 0.15s ease; }
+        .quiz-opt:hover { transform:scale(1.04); box-shadow:0 6px 20px rgba(0,0,0,0.15)!important; }
+        .quiz-opt { transition:all 0.15s ease; }
+        * { box-sizing:border-box; }
+      `}</style>
+
+      {/* Subtle background pattern */}
+      <div style={{
+        position:'fixed',inset:0,opacity:0.03,
+        backgroundImage:'radial-gradient(circle at 25% 25%, #B08D57 1px, transparent 1px), radial-gradient(circle at 75% 75%, #B08D57 1px, transparent 1px)',
+        backgroundSize:'60px 60px', pointerEvents:'none', zIndex:0,
+      }}/>
+
+      {/* Header */}
+      <div style={{
+        position:'relative', zIndex:1, textAlign:'center',
+        padding:'20px 16px 8px', animation:'fadeUp 0.6s ease',
+      }}>
+        <h1 style={{
+          fontFamily:'"Gaegu",cursive', fontSize:32, color:'#5D4E37',
+          margin:'0 0 6px', letterSpacing:'-0.5px',
+          textShadow:'0 2px 0 rgba(0,0,0,0.04)',
+        }}>
+          🧪 원소 탐험대
+        </h1>
+        <div style={{display:'flex',justifyContent:'center',gap:12,flexWrap:'wrap'}}>
+          <div style={{
+            background:'#EDE5D8', borderRadius:20, padding:'6px 16px',
+            display:'flex', alignItems:'center', gap:6,
+            border:'1px solid #D8CEBD',
+          }}>
+            <span style={{fontSize:18}}>⭐</span>
+            <span style={{fontSize:14,fontWeight:700,color:'#8B7355'}}>{stars}개</span>
+          </div>
+          <div style={{
+            background:'#EDE5D8', borderRadius:20, padding:'6px 16px',
+            display:'flex', alignItems:'center', gap:6,
+            border:'1px solid #D8CEBD',
+          }}>
+            <span style={{fontSize:18}}>📚</span>
+            <span style={{fontSize:14,fontWeight:700,color:'#8B7355'}}>{learned.size} / 118</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div style={{
+        display:'flex', justifyContent:'center', gap:8, padding:'10px 16px',
+        position:'relative', zIndex:1,
+      }}>
+        {[
+          {l:'🗺️ 주기율표',v:'table'},
+          {l:'📖 하나씩 배우기',v:'learn'},
+          {l:'🎮 퀴즈',v:'quiz_start'},
+        ].map(b=>(
+          <button key={b.v} className="btn-nav" onClick={()=>{
+            playClick();
+            if(b.v==='learn'){setSelectedEl(ELEMENTS[0]);setView('detail');setTimeout(()=>{speakEnglish(ELEMENTS[0].e);setTimeout(()=>speakKorean(ELEMENTS[0].k),1800);},400);}
+            else if(b.v==='quiz_start') startQuiz();
+            else setView('table');
+          }} style={{
+            background:view===b.v||(b.v==='learn'&&view==='detail')?'#5D4E37':'#EDE5D8',
+            color:view===b.v||(b.v==='learn'&&view==='detail')?'#F5F0E8':'#5D4E37',
+            border:'1.5px solid #C8B99A', borderRadius:24,
+            padding:'8px 18px', fontSize:13, fontWeight:700, cursor:'pointer',
+            fontFamily:'"Noto Sans KR"',
+          }}>{b.l}</button>
+        ))}
+      </div>
+
+      {/* Praise overlay */}
+      {showPraise && (
+        <div style={{
+          position:'fixed', top:0, left:0, right:0, bottom:0,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          zIndex:1000, background:'rgba(93,78,55,0.15)', backdropFilter:'blur(4px)',
+        }}>
+          <div style={{
+            background:'#FFF8ED', borderRadius:28, padding:'28px 40px',
+            animation:'popIn 0.4s ease', boxShadow:'0 16px 48px rgba(93,78,55,0.25)',
+            textAlign:'center', border:'2px solid #E8D5B5',
+          }}>
+            <div style={{fontSize:48,animation:'sparkle 0.6s ease infinite'}}>🌟</div>
+            <div style={{fontSize:20,fontWeight:800,color:'#5D4E37',marginTop:8,fontFamily:'"Noto Sans KR"'}}>
+              {praise}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== TABLE VIEW ===== */}
+      {view==='table' && (
+        <div style={{animation:'fadeUp 0.5s ease',position:'relative',zIndex:1,padding:'0 8px'}}>
+          <div style={{
+            display:'grid', gridTemplateColumns:'repeat(18,1fr)',
+            gap:2, maxWidth:920, margin:'0 auto', padding:10,
+            background:'rgba(255,255,255,0.5)', borderRadius:20,
+            border:'1px solid #E0D5C4', boxShadow:'0 4px 20px rgba(93,78,55,0.08)',
+          }}>
+            <div style={{gridRow:8,gridColumn:'1/19',height:6}}/>
+            {ELEMENTS.map(el=>{
+              const isLearned = learned.has(el.n);
+              const dimmed = hoveredCat && CAT_SHORT[el.cat]!==hoveredCat;
+              return (
+                <div key={el.n} className="cell" onClick={()=>openDetail(el)} style={{
+                  gridRow:el.r, gridColumn:el.c,
+                  background:getColor(el), borderRadius:5,
+                  cursor:'pointer', display:'flex', flexDirection:'column',
+                  alignItems:'center', justifyContent:'center',
+                  border:isLearned?'2px solid #5D4E37':'1px solid rgba(255,255,255,0.35)',
+                  position:'relative', minHeight:38, padding:'1px 0',
+                  opacity:dimmed?0.3:1,
+                  animation:isLearned?'glow 2s ease infinite':'none',
+                }}>
+                  <span style={{fontSize:7,opacity:0.7,fontWeight:600,lineHeight:1}}>{el.n}</span>
+                  <span style={{fontSize:14,fontWeight:800,lineHeight:1,color:'#2d2015'}}>{el.s}</span>
+                  <span style={{fontSize:6.5,fontWeight:600,lineHeight:1.2,color:'#3d3025',
+                    fontFamily:'"Noto Sans KR"'}}>{el.k}</span>
+                  {isLearned && <span style={{position:'absolute',top:-4,right:-4,fontSize:9}}>⭐</span>}
+                </div>
+              );
+            })}
+            <div style={{gridRow:9,gridColumn:'1',gridColumnEnd:'3',fontSize:8,color:'#8B7355',
+              display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>란타넘족</div>
+            <div style={{gridRow:10,gridColumn:'1',gridColumnEnd:'3',fontSize:8,color:'#8B7355',
+              display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>악티늄족</div>
+          </div>
+
+          {/* Legend */}
+          <div style={{display:'flex',flexWrap:'wrap',justifyContent:'center',gap:5,marginTop:10,padding:'0 12px'}}>
+            {Object.entries(CATEGORIES).map(([name,color])=>(
+              <span key={name} onMouseEnter={()=>setHoveredCat(name)} onMouseLeave={()=>setHoveredCat(null)}
+                style={{
+                  background:color,borderRadius:10,padding:'3px 10px',fontSize:10,
+                  fontWeight:600,cursor:'pointer',transition:'all 0.15s',
+                  border:hoveredCat===name?'2px solid #5D4E37':'2px solid transparent',
+                  fontFamily:'"Noto Sans KR"',
+                }}>{name}</span>
+            ))}
+          </div>
+
+          <div style={{textAlign:'center',marginTop:14,display:'flex',alignItems:'center',justifyContent:'center',gap:10}}>
+            <div style={{
+              width:52,height:52,borderRadius:'50%',
+              background:'linear-gradient(135deg,#F0DFC0,#E8C98E)',
+              display:'flex',alignItems:'center',justifyContent:'center',
+              fontSize:28, boxShadow:'0 4px 12px rgba(200,160,80,0.2)',
+              animation:'float 2.5s ease infinite', border:'2px solid #D8C49A',
+            }}>🧑‍🔬</div>
+            <div style={{
+              background:'white',borderRadius:16,padding:'10px 16px',
+              boxShadow:'0 2px 8px rgba(0,0,0,0.06)',fontSize:14,
+              color:'#5D4E37',fontWeight:600,fontFamily:'"Noto Sans KR"',
+              border:'1px solid #E8DFD0',
+            }}>원소를 클릭해서 하나씩 배워봐요!</div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== DETAIL VIEW ===== */}
+      {view==='detail' && selectedEl && (
+        <div style={{maxWidth:500,margin:'0 auto',padding:'0 16px',animation:'fadeUp 0.4s ease',position:'relative',zIndex:1}}>
+          {/* BACK BUTTON - prominent */}
+          <button className="btn-nav" onClick={()=>{playClick();setView('table');}} style={{
+            display:'flex', alignItems:'center', gap:8,
+            background:'#5D4E37', color:'#F5F0E8',
+            border:'none', borderRadius:16, padding:'10px 20px',
+            fontSize:14, fontWeight:700, cursor:'pointer', marginBottom:12,
+            fontFamily:'"Noto Sans KR"', boxShadow:'0 3px 10px rgba(93,78,55,0.2)',
+          }}>
+            <span style={{fontSize:18}}>←</span> 주기율표로 돌아가기
+          </button>
+
+          <div style={{
+            background:'white', borderRadius:24, padding:28,
+            boxShadow:'0 8px 32px rgba(93,78,55,0.1)',
+            border:'1px solid #E8DFD0',
+          }}>
+            {/* Element card */}
+            <div style={{
+              width:130,height:130,borderRadius:22,
+              background:`linear-gradient(135deg, ${getColor(selectedEl)}, ${getColor(selectedEl)}dd)`,
+              display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+              margin:'0 auto 18px', boxShadow:`0 8px 24px ${getColor(selectedEl)}44`,
+              animation:'popIn 0.4s ease', border:'3px solid rgba(255,255,255,0.5)',
+            }}>
+              <span style={{fontSize:14,fontWeight:600,opacity:0.6,color:'#2d2015'}}>{selectedEl.n}</span>
+              <span style={{fontSize:52,fontWeight:900,lineHeight:1,color:'#2d2015'}}>{selectedEl.s}</span>
+              <span style={{fontSize:17,fontWeight:800,fontFamily:'"Noto Sans KR"',color:'#2d2015'}}>{selectedEl.k}</span>
+            </div>
+
+            {/* English name */}
+            <div style={{textAlign:'center',fontSize:22,fontWeight:700,color:'#5D4E37',marginBottom:6,
+              fontFamily:'"Gaegu",cursive',letterSpacing:'-0.3px'}}>
+              {selectedEl.e}
+            </div>
+
+            {/* Category badge */}
+            <div style={{textAlign:'center',marginBottom:14}}>
+              <span style={{
+                background:getColor(selectedEl)+'33',borderRadius:12,padding:'4px 14px',
+                fontSize:12,fontWeight:700,color:'#5D4E37',fontFamily:'"Noto Sans KR"',
+                border:`1.5px solid ${getColor(selectedEl)}`,
+              }}>{CAT_SHORT[selectedEl.cat]}</span>
+            </div>
+
+            {/* Emoji */}
+            <div style={{textAlign:'center',fontSize:56,margin:'8px 0',animation:'float 2s ease infinite'}}>
+              {selectedEl.em}
+            </div>
+
+            {/* Description */}
+            <div style={{
+              background:'#FAF6EF',borderRadius:18,padding:'16px 18px',
+              fontSize:15,lineHeight:1.9,color:'#4A3F32',
+              fontFamily:'"Noto Sans KR"',fontWeight:500,
+              marginBottom:18,border:'1px solid #EDE5D8',
+            }}>
+              {selectedEl.d}
+            </div>
+
+            {/* Voice buttons */}
+            <div style={{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap'}}>
+              <button className="btn-nav" onClick={()=>{playClick();speakEnglish(selectedEl.e);}} style={{
+                flex:1, background:'#5D4E37',color:'#F5F0E8',border:'none',borderRadius:14,
+                padding:'11px 10px',fontSize:13,fontWeight:700,cursor:'pointer',
+                fontFamily:'"Noto Sans KR"',minWidth:130,
+              }}>🔊 영어 발음 듣기</button>
+              <button className="btn-nav" onClick={()=>{playClick();speakKorean(selectedEl.k);}} style={{
+                flex:1, background:'#8B7355',color:'#F5F0E8',border:'none',borderRadius:14,
+                padding:'11px 10px',fontSize:13,fontWeight:700,cursor:'pointer',
+                fontFamily:'"Noto Sans KR"',minWidth:130,
+              }}>🔊 한국어 발음 듣기</button>
+            </div>
+            <button className="btn-nav" onClick={()=>{playClick();speakKorean(selectedEl.d);}} style={{
+              width:'100%',background:'#A89478',color:'white',border:'none',borderRadius:14,
+              padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer',
+              fontFamily:'"Noto Sans KR"',marginBottom:16,
+            }}>🔊 설명 들어보기</button>
+
+            {/* Prev / Learned / Next */}
+            <div style={{display:'flex',gap:8,justifyContent:'center'}}>
+              <button className="btn-nav" onClick={()=>goNav(-1)} style={{
+                background:'#EDE5D8',border:'1.5px solid #D8CEBD',borderRadius:14,
+                padding:'10px 18px',fontSize:14,fontWeight:700,cursor:'pointer',
+                fontFamily:'"Noto Sans KR"',color:'#5D4E37',
+              }}>⬅ 이전</button>
+              <button className="btn-nav" onClick={markLearned} style={{
+                background:learned.has(selectedEl.n)?'#A5D6A7':'linear-gradient(135deg,#F0C060,#E0A030)',
+                border:'none',borderRadius:14,padding:'10px 22px',fontSize:14,fontWeight:800,
+                cursor:'pointer',fontFamily:'"Noto Sans KR"',color:learned.has(selectedEl.n)?'#2E7D32':'#5D4E37',
+                animation:learned.has(selectedEl.n)?'none':'float 2s ease infinite',
+              }}>{learned.has(selectedEl.n)?'✅ 학습 완료!':'⭐ 배웠어요!'}</button>
+              <button className="btn-nav" onClick={()=>goNav(1)} style={{
+                background:'#EDE5D8',border:'1.5px solid #D8CEBD',borderRadius:14,
+                padding:'10px 18px',fontSize:14,fontWeight:700,cursor:'pointer',
+                fontFamily:'"Noto Sans KR"',color:'#5D4E37',
+              }}>다음 ➡</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== QUIZ VIEW ===== */}
+      {view==='quiz' && quizEl && (
+        <div style={{maxWidth:500,margin:'0 auto',padding:'0 16px',animation:'fadeUp 0.4s ease',position:'relative',zIndex:1}}>
+          <button className="btn-nav" onClick={()=>{playClick();setView('table');}} style={{
+            display:'flex', alignItems:'center', gap:8,
+            background:'#5D4E37', color:'#F5F0E8',
+            border:'none', borderRadius:16, padding:'10px 20px',
+            fontSize:14, fontWeight:700, cursor:'pointer', marginBottom:12,
+            fontFamily:'"Noto Sans KR"', boxShadow:'0 3px 10px rgba(93,78,55,0.2)',
+          }}>
+            <span style={{fontSize:18}}>←</span> 주기율표로 돌아가기
+          </button>
+
+          <div style={{
+            background:'white',borderRadius:24,padding:28,
+            boxShadow:'0 8px 32px rgba(93,78,55,0.1)',
+            border:'1px solid #E8DFD0',textAlign:'center',
+          }}>
+            <div style={{fontSize:32,marginBottom:4}}>🎮</div>
+            <h2 style={{fontFamily:'"Gaegu",cursive',fontSize:24,color:'#5D4E37',margin:'0 0 16px'}}>
+              원소 퀴즈!
+            </h2>
+
+            <div style={{
+              background:'#FAF6EF',borderRadius:18,padding:'18px 16px',marginBottom:20,
+              border:'1px solid #EDE5D8',
+            }}>
+              <div style={{fontSize:42,marginBottom:8}}>{quizEl.em}</div>
+              <p style={{fontSize:15,lineHeight:1.8,color:'#4A3F32',fontFamily:'"Noto Sans KR"',
+                fontWeight:500,margin:0,textAlign:'left'}}>
+                💡 <strong>힌트:</strong> {quizEl.d}
+              </p>
+            </div>
+
+            <p style={{fontSize:16,fontWeight:700,fontFamily:'"Noto Sans KR"',color:'#8B7355',margin:'0 0 14px'}}>
+              이 원소는 무엇일까요?
+            </p>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+              {quizOpts.map(opt=>{
+                let bg = getColor(opt);
+                let bdr = '2px solid rgba(255,255,255,0.4)';
+                if(quizResult){
+                  if(opt.n===quizEl.n){ bg='#A5D6A7'; bdr='2px solid #4CAF50'; }
+                  else bg='#EDE5D8';
+                }
+                return (
+                  <button key={opt.n} className="quiz-opt" onClick={()=>answerQuiz(opt)} style={{
+                    background:bg,border:bdr,borderRadius:18,padding:'18px 12px',
+                    cursor:quizResult?'default':'pointer',display:'flex',flexDirection:'column',
+                    alignItems:'center',gap:4,
+                  }}>
+                    <span style={{fontSize:30,fontWeight:800,color:'#2d2015'}}>{opt.s}</span>
+                    <span style={{fontSize:14,fontWeight:700,fontFamily:'"Noto Sans KR"',color:'#3d3025'}}>{opt.k}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {quizResult==='correct' && (
+              <div style={{
+                background:'linear-gradient(135deg,#A5D6A7,#81C784)',
+                borderRadius:18,padding:16,color:'#1B5E20',
+                fontSize:17,fontWeight:800,fontFamily:'"Noto Sans KR"',
+                animation:'popIn 0.4s ease',marginBottom:12,
+              }}>🎉 정답이에요! {praise}</div>
+            )}
+            {quizResult==='wrong' && (
+              <div style={{
+                background:'linear-gradient(135deg,#FFCDD2,#EF9A9A)',
+                borderRadius:18,padding:16,color:'#B71C1C',
+                fontSize:15,fontWeight:700,fontFamily:'"Noto Sans KR"',
+                animation:'popIn 0.4s ease',marginBottom:12,
+              }}>😊 아쉬워요! 정답은 <strong>{quizEl.s} ({quizEl.k})</strong>이에요!</div>
+            )}
+
+            {quizResult && (
+              <div style={{display:'flex',gap:8,justifyContent:'center',marginBottom:8}}>
+                <button className="btn-nav" onClick={startQuiz} style={{
+                  background:'#5D4E37',color:'#F5F0E8',border:'none',borderRadius:16,
+                  padding:'10px 24px',fontSize:14,fontWeight:700,cursor:'pointer',
+                  fontFamily:'"Noto Sans KR"',
+                }}>🎮 다음 퀴즈!</button>
+              </div>
+            )}
+
+            <button className="btn-nav" onClick={()=>{playClick();speakKorean(quizEl.d);}} style={{
+              background:'#A89478',color:'white',border:'none',borderRadius:14,
+              padding:'9px 20px',fontSize:13,fontWeight:700,cursor:'pointer',
+              fontFamily:'"Noto Sans KR"',marginTop:4,
+            }}>🔊 힌트 다시 듣기</button>
+          </div>
+        </div>
+      )}
+
+      {/* Progress bar */}
+      <div style={{
+        maxWidth:500,margin:'16px auto 20px',padding:'0 16px',
+        position:'relative',zIndex:1,
+      }}>
+        <div style={{
+          background:'#EDE5D8',borderRadius:14,padding:'10px 14px',
+          border:'1px solid #D8CEBD',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:12,fontWeight:700,color:'#8B7355',fontFamily:'"Noto Sans KR"',whiteSpace:'nowrap'}}>
+              학습 진행
+            </span>
+            <div style={{flex:1,height:14,background:'#DDD5C6',borderRadius:7,overflow:'hidden'}}>
+              <div style={{
+                width:`${(learned.size/118)*100}%`,height:'100%',
+                background:'linear-gradient(90deg,#D4A843,#A5D6A7)',
+                borderRadius:7,transition:'width 0.5s ease',
+              }}/>
+            </div>
+            <span style={{fontSize:12,fontWeight:800,color:'#5D4E37'}}>
+              {Math.round((learned.size/118)*100)}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(PeriodicTableGame));
+</script>
+</body>
+</html>

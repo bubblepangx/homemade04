@@ -1,0 +1,15 @@
+{
+  "name": "원소 탐험대 - 주기율표 게임",
+  "short_name": "원소탐험대",
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F5F0E8",
+  "theme_color": "#F5F0E8"
+}
